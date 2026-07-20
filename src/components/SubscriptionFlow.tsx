@@ -219,18 +219,11 @@ export function SubscriptionFlow() {
 
         {/* T&C card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-2 text-base font-semibold text-slate-900">Terms and Conditions</h2>
-          <p className="mb-3 text-sm leading-relaxed text-slate-500">
-            By clicking Subscribe, you agree to the below terms and conditions:
-          </p>
+          <h2 className="mb-2 text-base text-center font-semibold text-slate-900">Terms and Conditions</h2>
+          
           <div className="flex flex-wrap gap-1 text-sm">
-            <a href="/terms" className="text-blue-600 underline underline-offset-2 hover:text-blue-800">
-              Terms and Conditions
-            </a>
-            <span className="text-slate-500">&amp;</span>
-            <a href="/privacy" className="text-blue-600 underline underline-offset-2 hover:text-blue-800">
-              Privacy Policy
-            </a>
+       Play is a subscription service that will automatically renew for AED 3.25/Daily for Etisalat subscribers until you unsubscribe. You can unsubscribe from the service at anytime, by sending C HP1 to 1111.
+          
           </div>
         </div>
 
