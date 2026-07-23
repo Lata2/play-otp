@@ -14,7 +14,7 @@ const client =
     database: process.env.DB_NAME,
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    ssl: false,   // <-- 'require' se false kiya, self-hosted Postgres mostly SSL support nahi karta
+  ssl: process.env.NODE_ENV === "production" ? "require" : false, // <-- 'require' se false kiya, self-hosted Postgres mostly SSL support nahi karta
     max: 1,
   });
 if (process.env.NODE_ENV !== 'production') {
