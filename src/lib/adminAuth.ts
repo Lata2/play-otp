@@ -60,3 +60,7 @@ export function isValidSession(token: string | undefined | null): boolean {
   console.log("[session] OK");
   return true;
 }
+export function destroySession(_token: string | undefined | null) {
+  // Stateless tokens can't be server-side revoked without a store.
+  // Clearing the cookie client-side (in the logout route) is sufficient here.
+}
