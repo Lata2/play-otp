@@ -29,10 +29,16 @@ export function createSession(): string {
 }
 
 export function isValidSession(token: string | undefined | null): boolean {
-  if (!token) return false;
+  if (!token) {
+    console.log("[session] REJECTED: no cookie/token present");
+    return false;
+  }
 
   const parts = token.split(".");
-  if (parts.length !== 3) return false;
+  if (parts.length !== 3) {
+    console.log("[session] REJECTED: malformed token, parts =", parts.length);
+    return false;
+  }
   const [createdAtStr, nonce, sig] = parts;
 
   const payload = `${createdAtStr}.${nonce}`;
@@ -41,14 +47,16 @@ export function isValidSession(token: string | undefined | null): boolean {
   const sigBuf = Buffer.from(sig, "hex");
   const expectedBuf = Buffer.from(expectedSig, "hex");
   if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) {
-    return false; // tampered / invalid
+    console.log("[session] REJECTED: signature mismatch — SESSION_SECRET alag ho sakta hai");
+    return false;
   }
 
   const createdAt = Number(createdAtStr);
   if (!createdAt || Date.now() - createdAt > SESSION_TTL_MS) {
-    return false; // expired
+    console.log("[session] REJECTED: expired");
+    return false;
   }
 
+  console.log("[session] OK");
   return true;
 }
-
