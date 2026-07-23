@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-// import { generatePin } from "@/lib/mockPinStore";
+import { generatePin } from "@/lib/mockPinStore";
+import { recordOtpRequest } from "@/lib/analyticsStore";
 
 /**
  * MOCK endpoint — simulates the "PIN Generation API" from the service spec.
@@ -10,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const msisdn = typeof body?.msisdn === "string" ? body.msisdn.trim() : "";
+  const isResend = body?.isResend === true;
 
   if (!/^\d{7,15}$/.test(msisdn)) {
     return NextResponse.json(
@@ -18,7 +20,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // const pin = generatePin(msisdn);
+  const pin = generatePin(msisdn);
+
+  // Persist this OTP request into Postgres so the admin dashboard can see it.
+  try {
+    await recordOtpRequest(msisdn, isResend);
+  } catch (err) {
+    console.error("[pingen] failed to record OTP request in DB:", err);
+  }
 
   return NextResponse.json({
     response: "SUCCESS",
@@ -27,7 +36,6 @@ export async function POST(req: NextRequest) {
     // response, it would be delivered by SMS. Exposed here purely so this
     // mock can be tested without a real SMS gateway. Always populated for
     // the fixed test number.
-    // devPin: pin,
-    
+    devPin: pin,
   });
 }

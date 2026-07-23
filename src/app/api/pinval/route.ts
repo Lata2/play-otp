@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validatePin } from "@/lib/mockPinStore";
+import { recordVerification, recordSubscriptionOutcome } from "@/lib/analyticsStore";
 
 /**
  * MOCK endpoint — simulates the "PIN Validation API" from the service spec.
@@ -21,6 +22,13 @@ export async function POST(req: NextRequest) {
   const result = validatePin(msisdn, pin);
 
   if (result.ok) {
+    try {
+      await recordVerification(msisdn, true);
+      // Successful PIN verification = subscription activated in this demo flow.
+      await recordSubscriptionOutcome(msisdn, true);
+    } catch (err) {
+      console.error("[pinval] failed to record verification/subscription in DB:", err);
+    }
     return NextResponse.json({ response: "SUCCESS", errorMessage: "SUCCESS" });
   }
 
@@ -30,6 +38,12 @@ export async function POST(req: NextRequest) {
     TOO_MANY_ATTEMPTS: "Too many incorrect attempts. Request a new PIN.",
     INVALID_PIN: "Incorrect PIN. Please try again.",
   };
+
+  try {
+    await recordVerification(msisdn, false, result.reason);
+  } catch (err) {
+    console.error("[pinval] failed to record verification in DB:", err);
+  }
 
   return NextResponse.json(
     { response: "Fail", errorMessage: messages[result.reason] ?? "Validation failed" },

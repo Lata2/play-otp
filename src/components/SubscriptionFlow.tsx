@@ -1,44 +1,82 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PhoneCheckIcon } from '@/components/PhoneCheckIcon';
 
 type Step = 'phone' | 'otp' | 'success';
 
 const COUNTRY_CODE = '971';
+const RESEND_COOLDOWN_SECONDS = 30;
 
 export function SubscriptionFlow() {
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [devPin, setDevPin] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
 const fullMsisdn = `${COUNTRY_CODE}${phone.trim()}`;
 const isPhoneValid = /^5\d{8}$/.test(phone.trim());   // ✅ sirf local 9-digit part check
 const isOtpValid = /^\d{4}$/.test(otp);
+
+  // Countdown timer for the resend cooldown, only while we're on the OTP step.
+  useEffect(() => {
+    if (step !== 'otp' || resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
+
+  async function requestPin(isResend: boolean) {
+    const res = await fetch('/api/pingen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msisdn: fullMsisdn, isResend }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.response !== 'SUCCESS') {
+      throw new Error(data.errorMessage || 'Something went wrong');
+    }
+    return data.devPin ?? null;
+  }
 
   async function handleContinue() {
     if (!isPhoneValid || loading) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/pingen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ msisdn: fullMsisdn }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.response !== 'SUCCESS') {
-        throw new Error(data.errorMessage || 'Something went wrong');
-      }
-      setDevPin(data.devPin ?? null);
+      const pin = await requestPin(false);
+      setDevPin(pin);
       setStep('otp');
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setResendMessage(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (resendCooldown > 0 || resending || loading) return;
+    setResending(true);
+    setError(null);
+    setResendMessage(null);
+    try {
+      const pin = await requestPin(true);
+      setDevPin(pin);
+      setOtp('');
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setResendMessage('A new code has been sent.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not resend code');
+    } finally {
+      setResending(false);
     }
   }
 
@@ -180,6 +218,24 @@ const isOtpValid = /^\d{4}$/.test(otp);
                 >
                   {loading ? 'Verifying...' : 'Verify & Subscribe'}
                 </button>
+
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={resendCooldown > 0 || resending || loading}
+                    onClick={handleResend}
+                    className="text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+                  >
+                    {resending
+                      ? 'Sending...'
+                      : resendCooldown > 0
+                      ? `Resend code in ${resendCooldown}s`
+                      : "Didn't get a code? Resend"}
+                  </button>
+                  {resendMessage && (
+                    <p className="text-xs text-emerald-600">{resendMessage}</p>
+                  )}
+                </div>
 
                 <button
                   type="button"
